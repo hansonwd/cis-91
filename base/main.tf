@@ -1,18 +1,18 @@
 
 variable "credentials_file" { 
-  default = "../secrets/cis-91.key" 
+  default = "/home/wil9640/cis-91-360404-ed390593b5ca.json" 
 }
 
 variable "project" {
-  default = "your-project-here"
+  default = "cis-91-360404"
 }
 
 variable "region" {
-  default = "us-central1"
+  default = "us-west1"
 }
 
 variable "zone" {
-  default = "us-central1-c"
+  default = "us-west1-a"
 }
 
 terraform {
