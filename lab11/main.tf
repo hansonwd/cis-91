@@ -15,6 +15,10 @@ variable "zone" {
   default = "us-west1-a"
 }
 
+variable "num_instances" {
+  default = 3
+}
+
 terraform {
   required_providers {
     google = {
@@ -37,7 +41,7 @@ resource "google_compute_network" "vpc_network" {
 
 # Webserver instances
 resource "google_compute_instance" "webservers" {
-  count = 5
+  count = var.num_instances
   name         = "web${count.index}"
   machine_type = "e2-micro"
 
