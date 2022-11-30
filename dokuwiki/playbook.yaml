@@ -1,8 +1,26 @@
 ---
+# William Hanson
+# Cabrillo College, CIS-91, Fall 2022
+# Assigment: Project2-Dokuwiki
+# 11/24/2022
+
 - hosts: all
   name: Add cis-91 packages
   become: yes
+  # user: root
   tasks:
+    - name: Create an ext4 filesystem for dokuwiki persistent_disk
+      community.general.filesystem:
+        fstype: ext4
+        dev: /dev/disk/by-id/google-dokuwiki-persistent
+
+    - name: Mount dokuwiki data attached_disk
+      ansible.posix.mount:
+        path: /var/www
+        src: /dev/disk/by-id/google-dokuwiki-persistent
+        fstype: ext4
+        state: mounted
+    
     - name: Install packages 
       ansible.builtin.apt:
         update_cache: yes
@@ -11,10 +29,54 @@
           - php 
           - php-xml
           - apache2
+        state: latest
 
     - name: Download Dokuwiki
       ansible.builtin.get_url:
         url: https://download.dokuwiki.org/src/dokuwiki/dokuwiki-stable.tgz
-        dest: /tmp/
+        dest: /var/tmp/
         mode: '0755'
 
+    - name: Extract /var/tmp/dokuwiki-stable.tgz into /var/www/html
+      ansible.builtin.unarchive:
+        src: /var/tmp/dokuwiki-stable.tgz
+        dest: /var/tmp/
+        remote_src: yes
+
+    - name: Move dokuwiki-2022-07-31a to /var/www/html
+      shell: mv /var/tmp/dokuwiki-2022-07-31a/* /var/www/html/
+
+    - name: Fix permission for www-data
+      shell: chown -R www-data /var/www/html/*
+
+    - name: Restart Apache
+      command: systemctl restart apache2
+
+    - name: Copy file with owner and permissions
+      ansible.builtin.copy:
+        src: ~/cis-91/dokuwiki/backup.sh
+        dest: /etc/cron.hourly/backup 
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy cron scrip to server
+      ansible.builtin.copy:
+        src: ~/cis-91/dokuwiki/monitor.cron
+        dest: .
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create cron job
+      shell: crontab monitor.cron
+
+    - name: Download logging script
+      command: curl -sSO https://dl.google.com/cloudagents/add-logging-agent-repo.sh
+
+    - name: chmod loggind script
+      command: chmod 0755 add-logging-agent-repo.sh
+
+    - name: Install logging
+      command: bash add-logging-agent-repo.sh --also-install
+...
