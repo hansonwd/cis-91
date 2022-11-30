@@ -43,11 +43,14 @@
         dest: /var/tmp/
         remote_src: yes
 
+    - name: Create dokuwiki directory in /var/www/html
+      command: mkdir /var/www/html/dokuwiki
+
     - name: Move dokuwiki-2022-07-31a to /var/www/html
-      shell: mv /var/tmp/dokuwiki-2022-07-31a/* /var/www/html/
+      shell: mv /var/tmp/dokuwiki-2022-07-31a/* /var/www/html/dokuwiki
 
     - name: Fix permission for www-data
-      shell: chown -R www-data /var/www/html/*
+      shell: chown -R www-data /var/www/html/dokuwiki/*
 
     - name: Restart Apache
       command: systemctl restart apache2
@@ -60,6 +63,7 @@
         group: root
         mode: '0755'
 
+
     - name: Copy cron scrip to server
       ansible.builtin.copy:
         src: ~/cis-91/dokuwiki/monitor.cron
@@ -68,9 +72,16 @@
         group: root
         mode: '0644'
 
-    - name: Create cron job
-      shell: crontab monitor.cron
-
+          
+    - name: Add job triggering doku.php
+      cron:
+        user: 'root'
+        name: 'monitor'
+        minute: '*'
+        job: './monitor.cron'
+        state: present
+      tags: cronjob
+        
     - name: Download logging script
       command: curl -sSO https://dl.google.com/cloudagents/add-logging-agent-repo.sh
 
