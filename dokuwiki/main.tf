@@ -126,7 +126,18 @@ resource "google_storage_bucket" "dokuwiki-storage-bucket" {
   name = "dokuwiki-storage-bucket"
   storage_class = "STANDARD"
   location = "us-west1"
+  force_destroy = true
+
+  lifecycle_rule {
+    condition {
+      age = 180
+    }
+    action {
+      type = "Delete"
+    }
+  }
 }
+
 output "external-ip" {
   value = google_compute_instance.vm_instance.network_interface[0].access_config[0].nat_ip
 }

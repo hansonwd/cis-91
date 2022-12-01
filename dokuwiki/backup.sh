@@ -1,4 +1,4 @@
-#!/bin/bash
+#! /bin/bash
 # Put this in /etc/cron.hourly/backup
 TARGET="gs://dokuwiki-storage-bucket"
 

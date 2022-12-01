@@ -35,19 +35,29 @@
       ansible.builtin.get_url:
         url: https://download.dokuwiki.org/src/dokuwiki/dokuwiki-stable.tgz
         dest: /var/tmp/
-        mode: '0755'
+        mode: '0644'
 
-    - name: Extract /var/tmp/dokuwiki-stable.tgz into /var/www/html
+    - name: Extract /var/tmp/dokuwiki-stable.tgz into /var/tmp/
       ansible.builtin.unarchive:
         src: /var/tmp/dokuwiki-stable.tgz
         dest: /var/tmp/
         remote_src: yes
 
-    - name: Create dokuwiki directory in /var/www/html
-      command: mkdir /var/www/html/dokuwiki
+          # - name: Create dokuwiki directory in /var/www/html/dokuwiki
+          # command: mkdir /var/www/html/dokuwiki
+
+
+    - name: create directory if not exists
+      file:
+        path: /var/www/html/dokuwiki
+        state: directory
+        mode: 0775
 
     - name: Move dokuwiki-2022-07-31a to /var/www/html
-      shell: mv /var/tmp/dokuwiki-2022-07-31a/* /var/www/html/dokuwiki
+      shell: cp -ru /var/tmp/dokuwiki-2022-07-31a/* /var/www/html/dokuwiki
+
+    - name: Clean up dokuwiki installation files
+      command: rm -rf /var/tmp/dokuwiki*
 
     - name: Fix permission for www-data
       shell: chown -R www-data /var/www/html/dokuwiki/*
@@ -58,34 +68,31 @@
     - name: Copy file with owner and permissions
       ansible.builtin.copy:
         src: ~/cis-91/dokuwiki/backup.sh
-        dest: /etc/cron.hourly/backup 
-        owner: root
-        group: root
-        mode: '0755'
+        dest: . 
 
+    - name: chmod backup script
+      command: chmod 0755 backup.sh
 
-    - name: Copy cron scrip to server
-      ansible.builtin.copy:
-        src: ~/cis-91/dokuwiki/monitor.cron
-        dest: .
-        owner: root
-        group: root
-        mode: '0644'
-
-          
-    - name: Add job triggering doku.php
-      cron:
-        user: 'root'
-        name: 'monitor'
-        minute: '*'
-        job: './monitor.cron'
+    - name: Create backup cron job
+      ansible.builtin.cron:
+        name: "HTML directory backup"
         state: present
-      tags: cronjob
-        
+        special_time: "hourly"
+        user: wil9640
+        job: /home/wil9640/cis-91/dokuwiki/backup.sh
+
+    - name: Run doku.php every minute
+      ansible.builtin.cron:
+        name: "Run doku.php"
+        state: present
+        minute: "*/1"
+        user: wil9640
+        job: /var/www/html/dokuwiki/doku.php  
+
     - name: Download logging script
       command: curl -sSO https://dl.google.com/cloudagents/add-logging-agent-repo.sh
 
-    - name: chmod loggind script
+    - name: chmod logging script
       command: chmod 0755 add-logging-agent-repo.sh
 
     - name: Install logging
