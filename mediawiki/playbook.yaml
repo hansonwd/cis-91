@@ -1,6 +1,11 @@
+# William Hanson
+# Cabrrillo College, CIS91, Fall 2022
+# Assignment: Project 3
+# 12/12/2022
+
 ---
 - hosts: all
-  name: Add cis-92 packages
+  name: Add project3 packages
   become: yes
   tasks:
     - name: Install packages 

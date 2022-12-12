@@ -1,3 +1,10 @@
+/*
+William Hanson
+Cabrillo College, CIS91, Fall 2022
+Assignment: Project 3
+12/12/2022
+*/
+
 
 variable "credentials_file" { 
   default = "/home/wil9640/cis-91-360404-0fc83fe160a0.json" 
@@ -39,6 +46,43 @@ resource "google_compute_network" "vpc_network" {
   name = "cis91-network"
 }
 
+
+# Database server
+resource "google_compute_instance" "vm_db" {
+  name         = "db"
+  machine_type = "e2-micro"
+
+  boot_disk {
+    initialize_params {
+      image = "ubuntu-os-cloud/ubuntu-2004-lts"
+    }
+  }
+
+  network_interface {
+    network = google_compute_network.vpc_network.name
+    access_config {
+    }
+  }
+  attached_disk {
+    source = google_compute_disk.project3-persistent-db.self_link
+    device_name = "project3-persistent-db"
+  }
+  service_account {
+    email  = google_service_account.project3-service-account.email
+    scopes = ["cloud-platform"]
+  }
+}
+
+resource "google_compute_disk" "project3-persistent-db" {
+  name  = "project3-persistent-db"
+  type  = "pd-ssd"
+  labels = {
+    environment = "project3"
+  }
+  size = "100"
+}
+
+
 # Webserver instances
 resource "google_compute_instance" "webservers" {
   count = var.num_instances
@@ -71,6 +115,29 @@ resource "google_compute_firewall" "default-firewall" {
   }
   source_ranges = ["0.0.0.0/0"]
 }
+
+
+data "google_iam_policy" "admin" {
+  binding {
+    role = "roles/iam.serviceAccountAdmin"
+    members = [
+      "serviceAccount:${google_service_account.project3-service-account.email}",
+    ]
+  }
+}
+
+resource "google_service_account" "project3-service-account" {
+  account_id   = "project3-service-account"
+  display_name = "project3-service-account"
+  description = "Service account for Project 3"
+}
+
+resource "google_service_account_iam_policy" "admin-acc-iam" {
+  service_account_id = google_service_account.project3-service-account.name
+  policy_data        = data.google_iam_policy.admin.policy_data
+}
+
+
 
 # Health check
 resource "google_compute_health_check" "webservers" {
