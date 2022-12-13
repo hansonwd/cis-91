@@ -12,6 +12,18 @@
   tags:
     - install
   tasks:
+    - name: Create an ext4 filesystem for project3 persistent_disk
+      community.general.filesystem:
+        fstype: ext4
+        dev: /dev/disk/by-id/google-project3-persistent-db
+
+    - name: Mount project3 attached_disk
+      ansible.posix.mount:
+        path: /var/lib/postgresql
+        src: /dev/disk/by-id/google-project3-persistent-db
+        fstype: ext4
+        state: mounted
+
     - name: Install packages 
       ansible.builtin.apt:
         update_cache: yes
@@ -21,6 +33,7 @@
           - python3-psycopg2
           - libpq-dev
           - acl
+
     - name: Update postgresql config 
       ansible.builtin.lineinfile:
         path: /etc/postgresql/12/main/postgresql.conf
@@ -28,6 +41,7 @@
         line: listen_addresses = '*' 
       notify:
       - Restart postgres
+
     - name: Update postgresql hba config
       ansible.builtin.lineinfile:
         path: /etc/postgresql/12/main/pg_hba.conf
@@ -35,11 +49,13 @@
         line: host  all  all 0.0.0.0/0 md5
       notify:
       - Restart postgres
+
     - name: Create postgres user
       become_user: postgres
       postgresql_user: 
         name: "{{ db_user }}" 
         password: "{{ db_passwd }}"
+
     - name: Create a DB for Mediawiki
       become_user: postgres
       postgresql_db: 

@@ -112,7 +112,7 @@ resource "google_compute_firewall" "default-firewall" {
   network = google_compute_network.vpc_network.name
   allow {
     protocol = "tcp"
-    ports = ["22", "80", "5432"]
+    ports = ["22", "80", "443","5432"]
   }
   source_ranges = ["0.0.0.0/0"]
 }
