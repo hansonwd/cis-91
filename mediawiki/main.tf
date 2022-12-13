@@ -71,6 +71,7 @@ resource "google_compute_instance" "vm_db" {
     email  = google_service_account.project3-service-account.email
     scopes = ["cloud-platform"]
   }
+  tags = ["db"]
 }
 
 resource "google_compute_disk" "project3-persistent-db" {
@@ -100,9 +101,9 @@ resource "google_compute_instance" "webservers" {
     access_config {
     }
   }
-  
+  tags = ["web"]
   labels = {
-    role: "web"
+    name: "web${count.index}"
   }
 }
 
@@ -111,7 +112,7 @@ resource "google_compute_firewall" "default-firewall" {
   network = google_compute_network.vpc_network.name
   allow {
     protocol = "tcp"
-    ports = ["22", "80"]
+    ports = ["22", "80", "5432"]
   }
   source_ranges = ["0.0.0.0/0"]
 }

@@ -1,0 +1,27 @@
+---
+- hosts: tags_items___db__
+  name: Reset the Database
+  become: yes
+  vars_files:
+    - mediawiki-vars.yaml
+  tasks:
+    - name: Delete the MediaWiki DB
+      become_user: postgres
+      postgresql_db: 
+        name: "{{ db_schema }}"
+        state: absent
+    - name: Delete the postgres user
+      become_user: postgres
+      postgresql_user: 
+        name: "{{ db_user }}"
+        state: absent
+
+- hosts: tags_items___web__
+  name: Remove the MediaWiki configuration.
+  become: yes
+  tasks:
+    - name: Remove LocalSettings.php
+      ansible.builtin.file:
+        path: /var/www/html/LocalSettings.php
+        state: absent
+

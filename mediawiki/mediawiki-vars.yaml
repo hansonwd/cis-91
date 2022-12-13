@@ -1,0 +1,12 @@
+
+lb_url: http://34.160.16.213
+
+mediawiki_sitename: "My CIS-91 Wiki"
+mediawiki_user: student 
+mediawiki_passwd: Cabri11oCabri11o 
+mediawiki_src: https://releases.wikimedia.org/mediawiki/1.35/mediawiki-1.35.2.tar.gz
+
+db_schema: mediawiki
+db_user: mediawiki
+db_passwd: Cabri11o
+

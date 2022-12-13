@@ -1,35 +1,148 @@
 # William Hanson
-# Cabrrillo College, CIS91, Fall 2022
-# Assignment: Project 3
+# Cabrillo College, CIS91, Fall 2022
+# Assignment: Project3
 # 12/12/2022
 
 ---
-- hosts: all
-  name: Add project3 packages
+- hosts: tags_items___db__
+  name: Install and configure the Postgres DBMS.
   become: yes
+  vars_files:
+    - mediawiki-vars.yaml
+  tags:
+    - install
   tasks:
     - name: Install packages 
       ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600
         name:
-          - python3-pip 
-          - python3-venv
+          - postgresql 
+          - python3-psycopg2
+          - libpq-dev
+          - acl
+    - name: Update postgresql config 
+      ansible.builtin.lineinfile:
+        path: /etc/postgresql/12/main/postgresql.conf
+        regexp: 'listen_address'
+        line: listen_addresses = '*' 
+      notify:
+      - Restart postgres
+    - name: Update postgresql hba config
+      ansible.builtin.lineinfile:
+        path: /etc/postgresql/12/main/pg_hba.conf
+        regexp: '^host\s+all'
+        line: host  all  all 0.0.0.0/0 md5
+      notify:
+      - Restart postgres
+    - name: Create postgres user
+      become_user: postgres
+      postgresql_user: 
+        name: "{{ db_user }}" 
+        password: "{{ db_passwd }}"
+    - name: Create a DB for Mediawiki
+      become_user: postgres
+      postgresql_db: 
+        name: "{{ db_schema }}"
+        state: present
+        owner: "{{ db_user }}"
+ 
+  handlers:
+    - name: Restart postgres
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted
 
-- hosts: gcp_role_web
-  name: Install Apache on the web servers
+
+- hosts: tags_items___web__
+  name: Install Apache2, PHP and MediaWiki
   become: yes
+  vars_files:
+    - mediawiki-vars.yaml
+  tags:
+    - install
   tasks:
     - name: Install packages 
       ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
         name:
-          - apache2
-          - php
-    - name: Update index.html so we can see the difference between hosts 
-      blockinfile:
+          - apache2 
+          - php 
+          - php-xml
+          - php-mbstring
+          - php-intl
+          - libapache2-mod-php 
+          - php-json 
+          - php-mysql 
+          - php-pgsql
+          - php-curl 
+          - php-gd 
+          - php-mbstring 
+          - texlive 
+          - imagemagick
+          - composer
+          - unzip 
+      notify: Restart apache
+    - name: Check if MediaWiki is downloaded and installed
+      stat: 
         path: /var/www/html/index.html
-        owner: www-data 
-        marker: "<!-- {mark} ANSIBLE MANAGED BLOCK -->"
-        insertafter: <body> 
-        block: | 
-          <h1>This is the server {{ inventory_hostname }}</h1>          
+      register: index_html
+    - name: Install MediaWiki from source 
+      ansible.builtin.unarchive:
+        src: "{{ mediawiki_src }}"
+        dest: /var/www/html
+        remote_src: yes
+        owner: www-data
+        group: www-data
+        extra_opts:
+          - --strip-components=1
+      when: index_html.stat.exists
+    - name: Install MediaWiki dependencies
+      ansible.builtin.shell:
+        chdir: /var/www/html
+        cmd: composer install --no-dev --no-cache
+        creates: /var/www/html/composer.lock
+      when: index_html.stat.exists
+    - name: Remove the default index.html 
+      ansible.builtin.file: 
+        path: /var/www/html/index.html 
+        state: absent       
+  handlers:
+    - name: Restart apache
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
+
+
+- hosts: gcp_name_web0
+  name: Setup MediaWiki on web0 
+  become: yes
+  vars_files:
+    - mediawiki-vars.yaml
+  tags:
+    - mediawiki
+  tasks:
+    - name: Run the MediaWiki installer
+      ansible.builtin.shell:
+        chdir: /var/www/html
+        cmd: |
+          sudo php maintenance/install.php --dbuser {{ db_user }} --dbpass {{ db_passwd }} --dbname {{ db_schema }} --dbserver db --dbport 5432 --dbtype postgres --pass {{ mediawiki_passwd }} --server "{{ lb_url }}" --scriptpath "" "{{ mediawiki_sitename }}" {{ mediawiki_user }}
+        creates: /var/www/html/LocalSettings.php 
+    - name: Get generated configuration 
+      slurp:
+        src: /var/www/html/LocalSettings.php
+      register: localsettings 
+
+
+- hosts: tags_items___web__
+  name: Setup MediaWiki on other web servers
+  become: yes
+  tags:
+    - mediawiki
+  tasks:
+    - name: Copy LocalSettings.php to other servers.
+      ansible.builtin.copy:
+        dest: /var/www/html/LocalSettings.php
+        content: "{{ hostvars[groups['gcp_name_web0'][0]]['localsettings']['content'] | b64decode }}"
+      when: hostvars[groups['gcp_name_web0'][0]]['localsettings'] is defined
