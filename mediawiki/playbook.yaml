@@ -124,6 +124,11 @@
       ansible.builtin.file: 
         path: /var/www/html/index.html 
         state: absent       
+    - name: Create the health check file
+      copy:
+        dest: /var/www/html/health.html
+        content: |
+          I'm alive
   handlers:
     - name: Restart apache
       ansible.builtin.service:

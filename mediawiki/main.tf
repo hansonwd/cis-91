@@ -148,6 +148,7 @@ resource "google_compute_health_check" "webservers" {
   check_interval_sec = 1
 
   http_health_check {
+    request_path = "/health.html"
     port = 80
   }
 }
